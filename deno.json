@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
+  "fmt": {
+    "proseWrap": "preserve"
+  },
+  "tasks": {
+    "start": {
+      "description": "Start the notification server on UNIX socket",
+      "command": "deno run --allow-net --allow-run --allow-read --allow-write --allow-env ./server.ts"
+    }
+  },
+  "lock": false
+}
