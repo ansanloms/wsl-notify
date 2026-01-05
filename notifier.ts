@@ -81,7 +81,6 @@ export const buildToastXml = (req: NotifyRequest): string => {
   ).join("") ?? "";
 
   return `
-    <?xml version="1.0"?>
     <toast activationType="protocol" launch="${escapeXml(req.url ?? "")}">
       <visual>
         <binding template="ToastGeneric">

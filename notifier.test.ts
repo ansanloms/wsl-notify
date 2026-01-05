@@ -10,7 +10,6 @@ Deno.test("buildToastXml - タイトルとメッセージのみの基本的な�
 
   const xml = buildToastXml(req);
 
-  assertStringIncludes(xml, '<?xml version="1.0"');
   assertStringIncludes(xml, "<toast");
   assertStringIncludes(xml, "<text>Test Title</text>");
   assertStringIncludes(xml, "<text>Test Message</text>");
@@ -118,7 +117,6 @@ Deno.test("buildToastXml - 全てのオプションを含む通知を生成で�
   const xml = buildToastXml(req);
 
   // Verify all components are present
-  assertStringIncludes(xml, '<?xml version="1.0"');
   assertStringIncludes(xml, "<toast");
   assertStringIncludes(xml, 'launch="https://example.com/build/123"');
   assertStringIncludes(xml, "<text>Build Complete</text>");
