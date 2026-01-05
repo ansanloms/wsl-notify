@@ -127,9 +127,21 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDocument)
   `;
 
   const cmd = new Deno.Command(ps, { args: ["-Command", script] });
-  const { code } = await cmd.output();
+  const { code, stdout, stderr } = await cmd.output();
 
   if (code !== 0) {
+    const stdoutText = new TextDecoder().decode(stdout);
+    const stderrText = new TextDecoder().decode(stderr);
+
+    console.error("PowerShell execution failed:");
+    console.error("Exit code:", code);
+    if (stdoutText) {
+      console.error("stdout:", stdoutText);
+    }
+    if (stderrText) {
+      console.error("stderr:", stderrText);
+    }
+
     throw new Error(`PowerShell exited with code ${code}`);
   }
 };
