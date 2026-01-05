@@ -10,7 +10,7 @@ export interface SocketServerOptions {
   sockPath: string;
 
   /**
-   * メッセージ受信時のハンドラ
+   * メッセージ受信時のハンドラ。
    * @param req 受信した通知リクエスト
    * @returns 処理結果のレスポンス
    */

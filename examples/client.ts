@@ -26,7 +26,10 @@ try {
 
   // タイムアウト付きでレスポンスを待つ
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Timeout waiting for response")), TIMEOUT_MS)
+    setTimeout(
+      () => reject(new Error("Timeout waiting for response")),
+      TIMEOUT_MS,
+    )
   );
 
   const readPromise = conn.read(buf);
