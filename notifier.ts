@@ -10,6 +10,11 @@ export interface NotifyRequest {
   message: string;
 
   /**
+   * 属性表示。
+   */
+  attribution?: string;
+
+  /**
    * 通知クリック時に開く遷移先。
    */
   url?: string;
@@ -34,6 +39,31 @@ export interface NotifyRequest {
    * Windows パスである必要がある。
    */
   icon?: string;
+
+  /**
+   * オーディオ出力。
+   */
+  audio?: {
+    /**
+     * @see https://learn.microsoft.com/ja-jp/uwp/schemas/tiles/toastschema/element-audio
+     */
+    src?: string;
+
+    /**
+     * ループ再生するかどうか。
+     */
+    loop?: boolean;
+
+    /**
+     * 無音にするかどうか。
+     */
+    silent?: boolean;
+  };
+
+  /**
+   * 通知の表示時間。
+   */
+  duration?: "long" | "short";
 }
 
 export interface NotifyResponse {
@@ -80,18 +110,35 @@ export const buildToastXml = (req: NotifyRequest): string => {
     />`
   ).join("") ?? "";
 
+  const attributionTag = req.attribution
+    ? `<text placement="attribution">${escapeXml(req.attribution)}</text>`
+    : "";
+
+  const audioTag = req.audio
+    ? `<audio
+        src="${escapeXml(req.audio.src ?? "")}"
+        loop="${req.audio.loop ? "true" : "false"}"
+        silent="${req.audio.silent ? "true" : "false"}"
+      />`
+    : "";
+
   return `
-    <toast activationType="protocol" launch="${escapeXml(req.url ?? "")}">
+    <toast
+      launch="${escapeXml(req.url ?? "")}"
+      duration="${req.duration ?? "short"}"
+    >
       <visual>
         <binding template="ToastGeneric">
           ${imageTag}
           <text>${escapeXml(req.title)}</text>
           <text>${escapeXml(req.message)}</text>
+          ${attributionTag}
         </binding>
       </visual>
       <actions>
         ${actionsTag}
       </actions>
+      ${audioTag}
     </toast>
   `;
 };
