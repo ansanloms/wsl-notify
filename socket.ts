@@ -95,6 +95,10 @@ export const startSocketServer = async (
   console.log(`Listening on ${sockPath}`);
 
   for await (const conn of listener) {
-    handleConnection(conn, onMessage);
+    // 接続を並列処理する（awaitしない）
+    // handleConnection内でエラーハンドリング済みだが、念のためcatchを追加
+    handleConnection(conn, onMessage).catch((err) => {
+      console.error("Unhandled connection error:", err);
+    });
   }
 };
