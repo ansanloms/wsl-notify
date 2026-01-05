@@ -49,9 +49,9 @@ export interface NotifyResponse {
 }
 
 /**
- * Escape special characters for XML.
- * @param text Text to escape
- * @returns Escaped text
+ * XML の特殊文字をエスケープする。
+ * @param text エスケープする文字列
+ * @returns エスケープされた文字列
  */
 const escapeXml = (text: string): string => {
   return text
@@ -63,9 +63,9 @@ const escapeXml = (text: string): string => {
 };
 
 /**
- * Build Windows Toast notification XML from NotifyRequest.
- * @param req Notification request
- * @returns XML string for Windows Toast notification
+ * NotifyRequest から Windows トースト通知用の XML を構築する。
+ * @param req 通知リクエスト
+ * @returns Windows トースト通知用の XML 文字列
  */
 export const buildToastXml = (req: NotifyRequest): string => {
   const declaration = '<?xml version="1.0"?>';
@@ -97,6 +97,12 @@ export const buildToastXml = (req: NotifyRequest): string => {
   return `${declaration}<toast ${toastAttrs}>${visual}${actionsTag}</toast>`;
 };
 
+/**
+ * Windows トースト通知を送信する。
+ * PowerShell を介して Windows Toast Notification API を呼び出す。
+ * @param req 通知リクエスト
+ * @throws PowerShell の実行に失敗した場合にエラーをスロー
+ */
 export const sendWindowsNotification = async (
   req: NotifyRequest,
 ): Promise<void> => {

@@ -17,6 +17,12 @@ export interface SocketServerOptions {
   onMessage: (req: NotifyRequest) => Promise<NotifyResponse>;
 }
 
+/**
+ * ソケット接続を処理する。
+ * クライアントからのリクエストを受信し、onMessage ハンドラを実行して、レスポンスを返す。
+ * @param conn ソケット接続
+ * @param onMessage メッセージ受信時のハンドラ
+ */
 const handleConnection = async (
   conn: Deno.Conn,
   onMessage: (req: NotifyRequest) => Promise<NotifyResponse>,
@@ -47,10 +53,15 @@ const handleConnection = async (
   }
 };
 
+/**
+ * UNIX ソケットサーバーを起動する。
+ * 既存のソケットファイルが存在する場合は削除してから、新しいソケットでリスニングを開始する。
+ * @param options サーバーオプション
+ */
 export const startSocketServer = async (
   { sockPath, onMessage }: SocketServerOptions,
 ): Promise<void> => {
-  // Remove existing socket file if it exists
+  // 既存のソケットファイルが存在する場合は削除
   try {
     await Deno.remove(sockPath);
   } catch (error) {
