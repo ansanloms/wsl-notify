@@ -18,6 +18,23 @@ export interface SocketServerOptions {
 }
 
 /**
+ * レスポンスを安全に書き込む。
+ * クライアントが既に切断している場合でも、エラーをキャッチしてサーバーを継続動作させる。
+ * @param conn ソケット接続
+ * @param res レスポンスデータ
+ */
+const safeWriteResponse = async (
+  conn: Deno.Conn,
+  res: NotifyResponse,
+): Promise<void> => {
+  try {
+    await conn.write(new TextEncoder().encode(JSON.stringify(res)));
+  } catch (error) {
+    console.error("Failed to send response:", error);
+  }
+};
+
+/**
  * ソケット接続を処理する。
  * クライアントからのリクエストを受信し、onMessage ハンドラを実行して、レスポンスを返す。
  * @param conn ソケット接続
@@ -37,7 +54,7 @@ const handleConnection = async (
       );
 
       const res = await onMessage(req);
-      await conn.write(new TextEncoder().encode(JSON.stringify(res)));
+      await safeWriteResponse(conn, res);
     }
   } catch (error) {
     console.error("Connection error:", error);
@@ -47,13 +64,7 @@ const handleConnection = async (
       error: String(error),
     };
 
-    // クライアントが既に切断している可能性があるため、書き込みエラーを無視する
-    try {
-      await conn.write(new TextEncoder().encode(JSON.stringify(res)));
-    } catch (writeError) {
-      // BrokenPipe などの書き込みエラーは無視してサーバーを継続動作させる
-      console.error("Failed to send error response:", writeError);
-    }
+    await safeWriteResponse(conn, res);
   } finally {
     conn.close();
   }

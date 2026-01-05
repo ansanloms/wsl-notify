@@ -1,5 +1,8 @@
-import type { NotifyRequest } from "../notifier.ts";
+import type { NotifyRequest, NotifyResponse } from "../notifier.ts";
 import { SOCK_PATH } from "../socket.ts";
+
+// タイムアウト時間（ミリ秒）
+const TIMEOUT_MS = 10000; // 10秒
 
 const conn = await Deno.connect({
   path: SOCK_PATH,
@@ -20,9 +23,23 @@ try {
   await conn.write(new TextEncoder().encode(JSON.stringify(req)));
 
   const buf = new Uint8Array(1024);
-  const n = await conn.read(buf);
 
-  console.log(JSON.parse(new TextDecoder().decode(buf.subarray(0, n ?? 0))));
+  // タイムアウト付きでレスポンスを待つ
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Timeout waiting for response")), TIMEOUT_MS)
+  );
+
+  const readPromise = conn.read(buf);
+
+  const n = await Promise.race([readPromise, timeoutPromise]);
+
+  const response: NotifyResponse = JSON.parse(
+    new TextDecoder().decode(buf.subarray(0, n ?? 0)),
+  );
+
+  console.log(response);
+} catch (error) {
+  console.error("Client error:", error);
 } finally {
   conn.close();
 }
