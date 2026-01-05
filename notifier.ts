@@ -1,5 +1,3 @@
-import { xml } from "./deps/xml/mod.ts";
-
 export interface NotifyRequest {
   /**
    * タイトル。
@@ -51,55 +49,52 @@ export interface NotifyResponse {
 }
 
 /**
+ * Escape special characters for XML.
+ * @param text Text to escape
+ * @returns Escaped text
+ */
+const escapeXml = (text: string): string => {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+};
+
+/**
  * Build Windows Toast notification XML from NotifyRequest.
  * @param req Notification request
  * @returns XML string for Windows Toast notification
  */
 export const buildToastXml = (req: NotifyRequest): string => {
-  // Build XML structure using xml package
-  const bindingContent = [
-    { _attr: { template: "ToastGeneric" } },
-    ...(req.icon
-      ? [{
-        image: [{
-          _attr: { placement: "appLogoOverride", src: req.icon },
-        }],
-      }]
-      : []),
-    { text: req.title },
-    { text: req.message },
-  ];
+  const declaration = '<?xml version="1.0"?>';
 
-  const actions = req.button
-    ? [{
-      actions: req.button.map(({ label, src }) => ({
-        action: [{
-          _attr: {
-            content: label,
-            activationType: "protocol",
-            arguments: src,
-          },
-        }],
-      })),
-    }]
-    : [];
+  const toastAttrs = `activationType="protocol" launch="${
+    escapeXml(req.url ?? "")
+  }"`;
 
-  return xml([{
-    toast: [
-      {
-        _attr: {
-          activationType: "protocol",
-          launch: req.url ?? "",
-        },
-      },
-      {
-        visual: [{
-          binding: bindingContent,
-        }],
-      },
-      ...actions,
-    ],
-  }], { declaration: true });
+  const imageTag = req.icon
+    ? `<image placement="appLogoOverride" src="${escapeXml(req.icon)}"/>`
+    : "";
+
+  const binding = `<binding template="ToastGeneric">${imageTag}<text>${
+    escapeXml(req.title)
+  }</text><text>${escapeXml(req.message)}</text></binding>`;
+
+  const visual = `<visual>${binding}</visual>`;
+
+  const actionsTag = req.button && req.button.length > 0
+    ? `<actions>${
+      req.button.map(({ label, src }) =>
+        `<action content="${
+          escapeXml(label)
+        }" activationType="protocol" arguments="${escapeXml(src)}"/>`
+      ).join("")
+    }</actions>`
+    : "";
+
+  return `${declaration}<toast ${toastAttrs}>${visual}${actionsTag}</toast>`;
 };
 
 export const sendWindowsNotification = async (

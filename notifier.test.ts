@@ -1,4 +1,4 @@
-import { assertStringIncludes } from "./deps/@std/assert/mod.ts";
+import { assertStringIncludes } from "@std/assert";
 import { buildToastXml } from "./notifier.ts";
 import type { NotifyRequest } from "./notifier.ts";
 
