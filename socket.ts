@@ -35,6 +35,28 @@ const safeWriteResponse = async (
 };
 
 /**
+ * タイムアウト付きでソケットから読み込む。
+ * @param conn ソケット接続
+ * @param buf バッファ
+ * @param timeoutMs タイムアウト時間（ミリ秒）
+ * @returns 読み込んだバイト数
+ */
+const readWithTimeout = async (
+  conn: Deno.Conn,
+  buf: Uint8Array,
+  timeoutMs: number,
+): Promise<number | null> => {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Read timeout")), timeoutMs)
+  );
+
+  return await Promise.race([
+    conn.read(buf),
+    timeoutPromise,
+  ]);
+};
+
+/**
  * ソケット接続を処理する。
  * クライアントからのリクエストを受信し、onMessage ハンドラを実行して、レスポンスを返す。
  * @param conn ソケット接続
@@ -46,7 +68,7 @@ const handleConnection = async (
 ): Promise<void> => {
   try {
     const buf = new Uint8Array(4096);
-    const n = await conn.read(buf);
+    const n = await readWithTimeout(conn, buf, 30000); // 30秒タイムアウト
 
     if (n) {
       const req: NotifyRequest = JSON.parse(
