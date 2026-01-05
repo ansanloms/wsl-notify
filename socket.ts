@@ -3,6 +3,12 @@ import type { NotifyRequest, NotifyResponse } from "./notifier.ts";
 export const SOCK_PATH = Deno.env.get("WSL_NOTIFY_SOCK") ??
   "/tmp/wsl-notify.sock";
 
+/**
+ * ソケット読み込みバッファのサイズ（バイト）。
+ * 通知リクエストの最大サイズを制限する。
+ */
+const BUFFER_SIZE = 16384; // 16KB
+
 export interface SocketServerOptions {
   /**
    * UNIX ソケットのパス。
@@ -67,7 +73,7 @@ const handleConnection = async (
   onMessage: (req: NotifyRequest) => Promise<NotifyResponse>,
 ): Promise<void> => {
   try {
-    const buf = new Uint8Array(4096);
+    const buf = new Uint8Array(BUFFER_SIZE);
     const n = await readWithTimeout(conn, buf, 30000); // 30秒タイムアウト
 
     if (n) {
