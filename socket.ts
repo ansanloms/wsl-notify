@@ -47,7 +47,13 @@ const handleConnection = async (
       error: String(error),
     };
 
-    await conn.write(new TextEncoder().encode(JSON.stringify(res)));
+    // クライアントが既に切断している可能性があるため、書き込みエラーを無視する
+    try {
+      await conn.write(new TextEncoder().encode(JSON.stringify(res)));
+    } catch (writeError) {
+      // BrokenPipe などの書き込みエラーは無視してサーバーを継続動作させる
+      console.error("Failed to send error response:", writeError);
+    }
   } finally {
     conn.close();
   }
