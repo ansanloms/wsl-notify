@@ -2,7 +2,9 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/assert@^1.0.16": "1.0.16",
-    "jsr:@std/internal@^1.0.12": "1.0.12"
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "npm:xmlbuilder2@*": "4.0.3",
+    "npm:xmlbuilder2@4.0.3": "4.0.3"
   },
   "jsr": {
     "@std/assert@1.0.16": {
@@ -13,6 +15,51 @@
     },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    }
+  },
+  "npm": {
+    "@oozcitak/dom@2.0.2": {
+      "integrity": "sha512-GjpKhkSYC3Mj4+lfwEyI1dqnsKTgwGy48ytZEhm4A/xnH/8z9M3ZVXKr/YGQi3uCLs1AEBS+x5T2JPiueEDW8w==",
+      "dependencies": [
+        "@oozcitak/infra",
+        "@oozcitak/url",
+        "@oozcitak/util"
+      ]
+    },
+    "@oozcitak/infra@2.0.2": {
+      "integrity": "sha512-2g+E7hoE2dgCz/APPOEK5s3rMhJvNxSMBrP+U+j1OWsIbtSpWxxlUjq1lU8RIsFJNYv7NMlnVsCuHcUzJW+8vA==",
+      "dependencies": [
+        "@oozcitak/util"
+      ]
+    },
+    "@oozcitak/url@3.0.0": {
+      "integrity": "sha512-ZKfET8Ak1wsLAiLWNfFkZc/BraDccuTJKR6svTYc7sVjbR+Iu0vtXdiDMY4o6jaFl5TW2TlS7jbLl4VovtAJWQ==",
+      "dependencies": [
+        "@oozcitak/infra",
+        "@oozcitak/util"
+      ]
+    },
+    "@oozcitak/util@10.0.0": {
+      "integrity": "sha512-hAX0pT/73190NLqBPPWSdBVGtbY6VOhWYK3qqHqtXQ1gK7kS2yz4+ivsN07hpJ6I3aeMtKP6J6npsEKOAzuTLA=="
+    },
+    "argparse@2.0.1": {
+      "integrity": "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="
+    },
+    "js-yaml@4.1.1": {
+      "integrity": "sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==",
+      "dependencies": [
+        "argparse"
+      ],
+      "bin": true
+    },
+    "xmlbuilder2@4.0.3": {
+      "integrity": "sha512-bx8Q1STctnNaaDymWnkfQLKofs0mGNN7rLLapJlGuV3VlvegD7Ls4ggMjE3aUSWItCCzU0PEv45lI87iSigiCA==",
+      "dependencies": [
+        "@oozcitak/dom",
+        "@oozcitak/infra",
+        "@oozcitak/util",
+        "js-yaml"
+      ]
     }
   },
   "workspace": {

@@ -1,3 +1,5 @@
+import { create } from "npm:xmlbuilder2@4.0.3";
+
 export interface NotifyRequest {
   /**
    * タイトル。
@@ -79,68 +81,67 @@ export interface NotifyResponse {
 }
 
 /**
- * XML の特殊文字をエスケープする。
- * @param text エスケープする文字列
- * @returns エスケープされた文字列
- */
-const escapeXml = (text: string): string => {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-};
-
-/**
  * NotifyRequest から Windows トースト通知用の XML を構築する。
  * @param req 通知リクエスト
  * @returns Windows トースト通知用の XML 文字列
  */
 export const buildToastXml = (req: NotifyRequest): string => {
-  const imageTag = req.icon
-    ? `<image placement="appLogoOverride" src="${escapeXml(req.icon)}"/>`
-    : "";
+  const root = create().ele("toast", {
+    launch: req.url ?? "",
+    duration: req.duration ?? "short",
+  });
 
-  const actionsTag = req.button?.map(({ label, src }) =>
-    `<action
-      content="${escapeXml(label)}"
-      activationType="protocol"
-      arguments="${escapeXml(src)}"
-    />`
-  ).join("") ?? "";
+  const binding = root
+    .ele("visual")
+    .ele("binding", { template: "ToastGeneric" });
 
-  const attributionTag = req.attribution
-    ? `<text placement="attribution">${escapeXml(req.attribution)}</text>`
-    : "";
+  if (req.icon) {
+    binding.ele("image", { placement: "appLogoOverride", src: req.icon });
+  }
 
-  const audioTag = req.audio
-    ? `<audio
-        src="${escapeXml(req.audio.src ?? "")}"
-        loop="${req.audio.loop ? "true" : "false"}"
-        silent="${req.audio.silent ? "true" : "false"}"
-      />`
-    : "";
+  binding.ele("text").txt(req.title);
+  binding.ele("text").txt(req.message);
 
-  return `
-    <toast
-      launch="${escapeXml(req.url ?? "")}"
-      duration="${req.duration ?? "short"}"
-    >
-      <visual>
-        <binding template="ToastGeneric">
-          ${imageTag}
-          <text>${escapeXml(req.title)}</text>
-          <text>${escapeXml(req.message)}</text>
-          ${attributionTag}
-        </binding>
-      </visual>
-      <actions>
-        ${actionsTag}
-      </actions>
-      ${audioTag}
-    </toast>
-  `;
+  if (req.attribution) {
+    binding.ele("text", { placement: "attribution" }).txt(req.attribution);
+  }
+
+  const actions = root.ele("actions");
+  if (req.button) {
+    for (const { label, src } of req.button) {
+      actions.ele("action", {
+        content: label,
+        activationType: "protocol",
+        arguments: src,
+      });
+    }
+  }
+
+  if (req.audio) {
+    root.ele("audio", {
+      src: req.audio.src ?? "",
+      loop: req.audio.loop ? "true" : "false",
+      silent: req.audio.silent ? "true" : "false",
+    });
+  }
+
+  return root.end({ headless: true });
+};
+
+/**
+ * WSL パスを Windows パスに変換する。
+ * @param wslPath WSL パス
+ * @returns Windows パス
+ */
+const toWindowsPath = async (wslPath: string): Promise<string> => {
+  const cmd = new Deno.Command("wslpath", { args: ["-w", wslPath] });
+  const { code, stdout } = await cmd.output();
+
+  if (code !== 0) {
+    throw new Error(`wslpath failed with code ${code}`);
+  }
+
+  return new TextDecoder().decode(stdout).trim();
 };
 
 /**
@@ -156,25 +157,27 @@ export const sendWindowsNotification = async (
 
   const xmlContent = buildToastXml(req);
 
-  const script = `
-[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+  // notifier.ps1 のパスを取得し Windows パスに変換
+  const cmd = new Deno.Command(ps, {
+    args: [
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      await toWindowsPath(new URL("./notifier.ps1", import.meta.url).pathname),
+    ],
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
 
-$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+  const process = cmd.spawn();
 
-$xml = @"
-${xmlContent}
-"@
+  // 標準入力に XML を書き込む
+  const writer = process.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(xmlContent));
+  await writer.close();
 
-$XmlDocument = [Windows.Data.Xml.Dom.XmlDocument]::new()
-$XmlDocument.LoadXml($xml)
-
-$toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDocument)
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show($toast)
-  `;
-
-  const cmd = new Deno.Command(ps, { args: ["-Command", script] });
-  const { code, stdout, stderr } = await cmd.output();
+  const { code, stdout, stderr } = await process.output();
 
   if (code !== 0) {
     const stdoutText = new TextDecoder().decode(stdout);

@@ -68,11 +68,10 @@ Deno.test("buildToastXml - タイトル内のXML特殊文字をエスケープ�
 
   const xml = buildToastXml(req);
 
-  // xml package should escape special characters
+  // xmlbuilder2 escapes <, >, & in text nodes (", ' are not required to be escaped)
   assertStringIncludes(xml, "&lt;");
   assertStringIncludes(xml, "&gt;");
   assertStringIncludes(xml, "&amp;");
-  assertStringIncludes(xml, "&quot;");
 });
 
 Deno.test("buildToastXml - メッセージ内のXML特殊文字をエスケープすること。", () => {
@@ -83,9 +82,9 @@ Deno.test("buildToastXml - メッセージ内のXML特殊文字をエスケー�
 
   const xml = buildToastXml(req);
 
+  // xmlbuilder2 escapes <, >, & in text nodes (', " are not required to be escaped)
   assertStringIncludes(xml, "&lt;tags&gt;");
   assertStringIncludes(xml, "&amp;");
-  assertStringIncludes(xml, "&apos;");
 });
 
 Deno.test("buildToastXml - ボタンラベル内のXML特殊文字をエスケープすること。", () => {
