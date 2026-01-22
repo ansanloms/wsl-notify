@@ -129,16 +129,19 @@ export const buildToastXml = (req: NotifyRequest): string => {
 };
 
 /**
- * Windows トースト通知を送信するための PowerShell スクリプト。
- * 標準入力から XML を受け取り、Toast 通知を表示する。
+ * Windows トースト通知を送信するための PowerShell スクリプトを生成する。
+ * @param xmlContent トースト通知用の XML 文字列
+ * @returns PowerShell スクリプト
  */
-const TOAST_SCRIPT = `
+const buildToastScript = (xmlContent: string): string => `
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 
 $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
 
-$xml = [Console]::In.ReadToEnd()
+$xml = @"
+${xmlContent}
+"@
 
 $XmlDocument = [Windows.Data.Xml.Dom.XmlDocument]::new()
 $XmlDocument.LoadXml($xml)
@@ -158,23 +161,10 @@ export const sendWindowsNotification = async (
 ): Promise<void> => {
   const ps = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
 
-  const xmlContent = buildToastXml(req);
-
   const cmd = new Deno.Command(ps, {
-    args: ["-Command", TOAST_SCRIPT],
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
+    args: ["-Command", buildToastScript(buildToastXml(req))],
   });
-
-  const process = cmd.spawn();
-
-  // 標準入力に XML を書き込む
-  const writer = process.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(xmlContent));
-  await writer.close();
-
-  const { code, stdout, stderr } = await process.output();
+  const { code, stdout, stderr } = await cmd.output();
 
   if (code !== 0) {
     const stdoutText = new TextDecoder().decode(stdout);
