@@ -129,20 +129,23 @@ export const buildToastXml = (req: NotifyRequest): string => {
 };
 
 /**
- * WSL パスを Windows パスに変換する。
- * @param wslPath WSL パス
- * @returns Windows パス
+ * Windows トースト通知を送信するための PowerShell スクリプト。
+ * 標準入力から XML を受け取り、Toast 通知を表示する。
  */
-const toWindowsPath = async (wslPath: string): Promise<string> => {
-  const cmd = new Deno.Command("wslpath", { args: ["-w", wslPath] });
-  const { code, stdout } = await cmd.output();
+const TOAST_SCRIPT = `
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 
-  if (code !== 0) {
-    throw new Error(`wslpath failed with code ${code}`);
-  }
+$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
 
-  return new TextDecoder().decode(stdout).trim();
-};
+$xml = [Console]::In.ReadToEnd()
+
+$XmlDocument = [Windows.Data.Xml.Dom.XmlDocument]::new()
+$XmlDocument.LoadXml($xml)
+
+$toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDocument)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show($toast)
+`;
 
 /**
  * Windows トースト通知を送信する。
@@ -157,14 +160,8 @@ export const sendWindowsNotification = async (
 
   const xmlContent = buildToastXml(req);
 
-  // notifier.ps1 のパスを取得し Windows パスに変換
   const cmd = new Deno.Command(ps, {
-    args: [
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      await toWindowsPath(new URL("./notifier.ps1", import.meta.url).pathname),
-    ],
+    args: ["-Command", TOAST_SCRIPT],
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
