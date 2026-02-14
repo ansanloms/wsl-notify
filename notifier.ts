@@ -1,4 +1,72 @@
 import { create } from "npm:xmlbuilder2@4.0.3";
+import { extname } from "jsr:@std/path@1";
+
+const PS_PATH = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
+
+/**
+ * WSL パスかどうかを判定する。
+ * `/` で始まるパスを WSL パスとみなす（Windows パスはドライブレターで始まる）。
+ */
+export const isWslPath = (path: string): boolean => {
+  return path.startsWith("/");
+};
+
+/**
+ * Windows の TEMP フォルダーのパスを取得する。
+ */
+const getWindowsTempPath = async (): Promise<string> => {
+  const cmd = new Deno.Command(PS_PATH, {
+    args: ["-NoProfile", "-Command", "[System.IO.Path]::GetTempPath()"],
+  });
+  const result = await cmd.output();
+
+  if (result.code !== 0) {
+    throw new Error(
+      `Failed to get TEMP path: ${new TextDecoder().decode(result.stderr)}`,
+    );
+  }
+
+  return new TextDecoder().decode(result.stdout).trim();
+};
+
+/**
+ * ファイルの SHA-256 ハッシュを16進文字列で返す。
+ */
+export const hashFile = async (path: string): Promise<string> => {
+  const data = await Deno.readFile(path);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+/**
+ * WSL パスの画像を Windows 側の TEMP フォルダーにコピーし、Windows パスを返す。
+ * ハッシュベースのファイル名を使い、既にコピー済みならスキップする。
+ * @param src WSL 上の画像パス
+ * @returns Windows パス形式の一時ファイルパス
+ */
+const copyImageToWindowsTemp = async (src: string): Promise<string> => {
+  const ext = extname(src);
+  const hash = await hashFile(src);
+  const tempDir = await getWindowsTempPath();
+  const fileName = `wsl-notify-${hash}${ext}`;
+  const winPath = `${tempDir}${fileName}`;
+
+  const wslpathCmd = new Deno.Command("wslpath", {
+    args: ["-u", winPath],
+  });
+  const wslpathResult = await wslpathCmd.output();
+  const wslTmpPath = new TextDecoder().decode(wslpathResult.stdout).trim();
+
+  try {
+    await Deno.stat(wslTmpPath);
+  } catch {
+    await Deno.copyFile(src, wslTmpPath);
+  }
+
+  return winPath;
+};
 
 export interface NotifyRequest {
   /**
@@ -37,10 +105,24 @@ export interface NotifyRequest {
   }[];
 
   /**
-   * アイコンのパス。
-   * Windows パスである必要がある。
+   * 画像表示。
    */
-  icon?: string;
+  image?: {
+    /**
+     * 画像の配置。
+     */
+    placement?: "appLogoOverride" | "hero";
+
+    /**
+     * 画像のトリミング。
+     */
+    hintCrop?: "circle";
+
+    /**
+     * 画像のパス。
+     */
+    src: string;
+  };
 
   /**
    * オーディオ出力。
@@ -93,17 +175,25 @@ export const buildToastXml = (req: NotifyRequest): string => {
 
   const binding = root
     .ele("visual")
-    .ele("binding", { template: "ToastGeneric" });
+    .ele("binding", {
+      template: "ToastGeneric",
+    });
 
-  if (req.icon) {
-    binding.ele("image", { placement: "appLogoOverride", src: req.icon });
+  if (req.image) {
+    binding.ele("image", {
+      placement: req.image.placement,
+      "hint-crop": req.image.hintCrop,
+      src: req.image.src,
+    });
   }
 
   binding.ele("text").txt(req.title);
   binding.ele("text").txt(req.message);
 
   if (req.attribution) {
-    binding.ele("text", { placement: "attribution" }).txt(req.attribution);
+    binding.ele("text", {
+      placement: "attribution",
+    }).txt(req.attribution);
   }
 
   const actions = root.ele("actions");
@@ -159,9 +249,11 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDocument)
 export const sendWindowsNotification = async (
   req: NotifyRequest,
 ): Promise<void> => {
-  const ps = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
+  if (req.image && isWslPath(req.image.src)) {
+    req.image.src = await copyImageToWindowsTemp(req.image.src);
+  }
 
-  const cmd = new Deno.Command(ps, {
+  const cmd = new Deno.Command(PS_PATH, {
     args: ["-Command", buildToastScript(buildToastXml(req))],
   });
   const { code, stdout, stderr } = await cmd.output();
