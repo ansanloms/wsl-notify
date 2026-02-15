@@ -15,4 +15,7 @@ await sendWindowsNotification({
     { label: "Open", src: "https://example.com/open" },
     { label: "Dismiss", src: "https://example.com/dismiss" },
   ],
+  audio: {
+    src: "ms-winsoundevent:Notification.Looping.Call6",
+  },
 });
