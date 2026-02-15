@@ -1,5 +1,5 @@
 import { create } from "npm:xmlbuilder2@4.0.3";
-import { extname } from "jsr:@std/path@1";
+import { extname } from "jsr:@std/path@1.1.4";
 
 const PS_PATH = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
 
@@ -46,9 +46,18 @@ export const hashFile = async (path: string): Promise<string> => {
  * @param src WSL 上の画像パス
  * @returns Windows パス形式の一時ファイルパス
  */
-const copyImageToWindowsTemp = async (src: string): Promise<string> => {
-  const ext = extname(src);
-  const hash = await hashFile(src);
+const copyImageToWindowsTemp = async (
+  src: string,
+): Promise<string | undefined> => {
+  let resolvedSrc: string;
+  try {
+    resolvedSrc = await Deno.realPath(src);
+  } catch {
+    return undefined;
+  }
+
+  const ext = extname(resolvedSrc);
+  const hash = await hashFile(resolvedSrc);
   const tempDir = await getWindowsTempPath();
   const fileName = `wsl-notify-${hash}${ext}`;
   const winPath = `${tempDir}${fileName}`;
@@ -62,7 +71,7 @@ const copyImageToWindowsTemp = async (src: string): Promise<string> => {
   try {
     await Deno.stat(wslTmpPath);
   } catch {
-    await Deno.copyFile(src, wslTmpPath);
+    await Deno.copyFile(resolvedSrc, wslTmpPath);
   }
 
   return winPath;
@@ -250,7 +259,12 @@ export const sendWindowsNotification = async (
   req: NotifyRequest,
 ): Promise<void> => {
   if (req.image && isWslPath(req.image.src)) {
-    req.image.src = await copyImageToWindowsTemp(req.image.src);
+    const resolvedSrc = await copyImageToWindowsTemp(req.image.src);
+    if (resolvedSrc) {
+      req.image.src = resolvedSrc;
+    } else {
+      delete req.image;
+    }
   }
 
   const cmd = new Deno.Command(PS_PATH, {
